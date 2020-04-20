@@ -1,0 +1,47 @@
+image: node:10-alpine
+
+stages:
+  - test
+  - deploy
+
+before_script:
+  - npm config set prefix /usr/local
+  - npm install -g serverless
+  - npm install
+
+test:
+  stage: test
+  script:
+    - npm run test
+  only:
+    - master
+    - merge_requests
+
+.deploy:
+  script:
+    - serverless config credentials --provider aws --key ${ACCESS_KEY_ID} --secret ${SECRET_ACCESS_KEY}
+    - serverless deploy --stage=${STAGE} --verbose
+
+deploy-master:
+  stage: deploy
+  extends:
+    - .deploy
+  only:
+    - master
+  variables:
+    STAGE: prod
+    ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID_prod}
+    SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY_prod}
+
+deploy-sandbox:
+  stage: deploy
+  extends:
+    - .deploy
+  except:
+    - master
+  only:
+    - merge_requests
+  variables:
+    STAGE: dev
+    ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID_dev}
+    SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY_dev}
